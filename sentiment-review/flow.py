@@ -12,7 +12,7 @@ def make_batches(items, n):
     bs = math.ceil(len(items) / n)
     return [items[i * bs:(i + 1) * bs] for i in range(n)]
 
-
+@project(name='sentiment_analysis')
 @nim(models=[MODEL])
 class ReviewSentimentFlow(FlowSpec):
 
