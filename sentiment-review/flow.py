@@ -23,7 +23,6 @@ def make_batches(items, n):
     return [items[i * bs : (i + 1) * bs] for i in range(n)]
 
 
-@nim(models=[MODEL])
 class ReviewSentimentFlow(FlowSpec):
 
     num_parallel = Parameter("num_parallel", default=5)
@@ -38,6 +37,7 @@ class ReviewSentimentFlow(FlowSpec):
         self.batches = make_batches(self.reviews, self.num_parallel)
         self.next(self.prompt, foreach="batches")
 
+    @nim(models=[MODEL])
     @card(type="blank", refresh_interval=1)
     @step
     def prompt(self):

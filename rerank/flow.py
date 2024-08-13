@@ -6,7 +6,6 @@ MODELS = [
     "nvidia/nv-rerankqa-mistral-4b-v3"
 ]
 
-@nim(models=MODELS)
 class Rerank(FlowSpec):
 
     dataset = Parameter(
@@ -57,6 +56,7 @@ class Rerank(FlowSpec):
     
         self.next(self.rerank, foreach='batch')
 
+    @nim(models=MODELS)
     @card(type='blank', id='progress', refresh_interval=1)
     @pypi(packages={'numpy': '2.0.1', 'pandas': '2.2.2'})
     @step

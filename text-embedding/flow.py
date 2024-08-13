@@ -7,8 +7,6 @@ MODELS = [
     # 'snowflake/arctic-embed-l'
 ]
 
-
-@nim(models=MODELS)
 class TextEmbedding(FlowSpec):
 
     text = IncludeFile(name="data", default="data.txt", help="Texts to embed")
@@ -25,13 +23,13 @@ class TextEmbedding(FlowSpec):
         ]
         self.next(self.embed, foreach="batch")
 
+    @nim(models=MODELS)
     @step
     def embed(self):
         import time
         import requests
 
         self.text_batch = self.input
-
         t0 = time.time()
         res_json = current.nim.models[self.model](
             input=self.text_batch, input_type="query"

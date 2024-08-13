@@ -17,10 +17,10 @@ import json
 MODELS = ["meta/llama3-8b-instruct", "meta/llama3-70b-instruct"]
 
 
-@nim(models=MODELS)
 class ParallelLLMEval(FlowSpec):
 
-    n = Parameter("n", default=100)
+    n = Parameter("n", default=20)
+    n_per_batch = Parameter("n-per-batch", default=20)
     json_file = IncludeFile("v", default="vega_spec.json")
 
     @step
@@ -28,46 +28,49 @@ class ParallelLLMEval(FlowSpec):
         self.worker = list(range(self.n))
         self.next(self.query, foreach="worker")
 
+    @nim(models=MODELS)
     @card
     @step
     def query(self):
 
-        q = "Write a fanciful tale of princesses, a dragon, and a garbage collector."
+        q = "Write a fanciful tale of princesses, a dragon, and garbage collection."
 
         self.openai_client_args = dict(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": q},
             ],
-            max_tokens=111,
+            temperature=0.25,
+            max_tokens=177,
         )
 
         # level 0 prompt tracking/versioning with Outerbounds
         self.prompt_trace = []
-        for model_name in MODELS:
-            llm = current.nim.models[model_name]
-            t0 = time.time()
-            resp = llm(**self.openai_client_args)
-            tf = time.time()
-            print(
-                f"{model_name} returned {resp['usage']['completion_tokens']} tokens to client in {round(tf - t0, 3)} seconds."
-            )
-            assert (
-                resp["model"] == model_name
-            ), f"Response model mismatch with {model_name}"
-            assert len(resp["choices"]) == 1, "Too many completions in response"
-            assert (
-                resp["usage"]["completion_tokens"]
-                <= self.openai_client_args["max_tokens"]
-            ), "Too many tokens in completion"
-            self.prompt_trace.append(
-                {
-                    "prompt": self.openai_client_args,
-                    "response": resp,
-                    "model": model_name,
-                    "time": tf - t0,
-                }
-            )
+        for _ in range(self.n_per_batch):
+            for model_name in MODELS:
+                llm = current.nim.models[model_name]
+                t0 = time.time()
+                resp = llm(**self.openai_client_args)
+                tf = time.time()
+                print(
+                    f"{model_name} returned {resp['usage']['completion_tokens']} tokens to client in {round(tf - t0, 3)} seconds."
+                )
+                assert (
+                    resp["model"] == model_name
+                ), f"Response model mismatch with {model_name}"
+                assert len(resp["choices"]) == 1, "Too many completions in response"
+                assert (
+                    resp["usage"]["completion_tokens"]
+                    <= self.openai_client_args["max_tokens"]
+                ), "Too many tokens in completion"
+                self.prompt_trace.append(
+                    {
+                        "prompt": self.openai_client_args,
+                        "response": resp,
+                        "model": model_name,
+                        "time": tf - t0,
+                    }
+                )
 
         current.card.append(
             Table(
