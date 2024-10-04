@@ -1,18 +1,38 @@
-from metaflow import FlowSpec, step, nim, current, card
-from metaflow.cards import Table
+from metaflow import (
+    FlowSpec,
+    step,
+    nim,
+    current,
+    card,
+    retry,
+    catch,
+    IncludeFile,
+    JSONType,
+    Parameter,
+)
+from metaflow.cards import Table, VegaChart
 import time
+import json
 
 MODELS = ["meta/llama3-8b-instruct", "meta/llama3-70b-instruct"]
 
 
 @nim(models=MODELS)
-class Llama3Comparison(FlowSpec):
+class ParallelLLMEval(FlowSpec):
+
+    n = Parameter("n", default=100)
+    json_file = IncludeFile("v", default="vega_spec.json")
+
+    @step
+    def start(self):
+        self.worker = list(range(self.n))
+        self.next(self.query, foreach="worker")
 
     @card
     @step
-    def start(self):
+    def query(self):
 
-        q = "What's the weather like today?"
+        q = "Write a fanciful tale of princesses, a dragon, and a garbage collector."
 
         self.openai_client_args = dict(
             messages=[
@@ -67,12 +87,30 @@ class Llama3Comparison(FlowSpec):
             )
         )
 
+        self.next(self.join)
+
+    @card
+    @step
+    def join(self, inputs):
+        self.prompt_trace = [trial for i in inputs for trial in i.prompt_trace]
+        data = []
+        for p in self.prompt_trace:
+            data.append({"model": p["model"], "time": p["time"]})
+
+        vega_spec = json.loads(self.json_file)
+        for i, data_source in enumerate(vega_spec["data"]):
+            if data_source["name"] == "times":
+                break
+        vega_spec["data"][i]["values"] = data
+        chart = VegaChart(vega_spec)
+        current.card.append(chart)
+
         self.next(self.end)
 
     @step
     def end(self):
-        print(self.prompt_trace)
+        print(len(self.prompt_trace))
 
 
 if __name__ == "__main__":
-    Llama3Comparison()
+    ParallelLLMEval()
