@@ -29,6 +29,13 @@ environment to use the decorator, e.g. using `@pypi`:
 @pypi(packages={'torch': '2.4.1', 'tensorboard': '2.18.0'})
 ```
 
+### Examples
+
+ - A simple example emitting custom scalars: [`SimpleTb`](https://github.com/outerbounds/nim-examples/blob/main/tensorboard/tbsimple.py)
+
+ - A more realistic examples training an MNIST model with PyTorch with hyperparameter optimization for batch sizes and using `@project`
+   to separate metrics from production and experiments: [`TBMnistFlow`](https://github.com/outerbounds/nim-examples/blob/main/tensorboard/tbmnist.py)
+
 ## Usage: Inspecting results on Tensorboard
 
 The beginning of the task output (visible in the task UI) shows lines like:
