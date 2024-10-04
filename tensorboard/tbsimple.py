@@ -1,5 +1,5 @@
 import random
-from metaflow import FlowSpec, step, resources, tensorboard
+from metaflow import FlowSpec, step, resources, tensorboard, pypi
 
 class SimpleTb(FlowSpec):
 
@@ -8,6 +8,7 @@ class SimpleTb(FlowSpec):
         self.countries = ['US', 'CA', 'BR', 'CN']
         self.next(self.train, foreach='countries')
 
+    @pypi(packages={'torch': '2.4.1', 'tensorboard': '2.18.0'})
     @tensorboard
     @step
     def train(self):
