@@ -5,6 +5,7 @@ from metaflow import (
     project,
     Flow,
     IncludeFile,
+    kubernetes,
     Parameter,
     card,
 )
@@ -15,30 +16,31 @@ from itertools import islice
 from metaflow import nim
 
 MODEL = "meta/llama3-8b-instruct"
-PROMPT = "answer with one word HAPPY if the sentiment of the following sentence is positive, otherwise answer with one word SAD"
-
+#MODEL = 'meta/llama3-70b-instruct'
+#PROMPT = "answer with one word HAPPY if the sentiment of the following sentence is positive, otherwise answer with one word SAD"
+PROMPT = "analyze the sentiment of the following message thoroughly and write a 5000 word essay about it: "
 
 def make_batches(items, n):
     bs = math.ceil(len(items) / n)
     return [items[i * bs : (i + 1) * bs] for i in range(n)]
 
 @project(name='sentiment_analysis')
-@nim(models=[MODEL])
 class ReviewSentimentFlow(FlowSpec):
 
-    num_parallel = Parameter("num_parallel", default=5)
+    num_parallel = Parameter("num_parallel", default=16)
     review_csv = IncludeFile("reviews", default="reviews.csv")
 
     @step
     def start(self):
         self.reviews = [
             row["Review Text"] for row in csv.DictReader(io.StringIO(self.review_csv))
-        ]
+        ] * 100
         print("Number of reviews:", len(self.reviews))
         self.batches = make_batches(self.reviews, self.num_parallel)
         self.next(self.prompt, foreach="batches")
 
-    @card(type="blank", refresh_interval=1)
+    @nim(models=[MODEL])
+    @card(type="blank", refresh_interval=10)
     @step
     def prompt(self):
         import sentiment_chart
@@ -59,7 +61,7 @@ class ReviewSentimentFlow(FlowSpec):
         self.results = []
         for i, review in enumerate(self.input):
             if review:
-
+                review = review * 10
                 # send a prompt to the LLM
                 prompt = {"role": "user", "content": f"{PROMPT}: {review}"}
                 chat_completion = llm(messages=[prompt], model=MODEL)
@@ -74,7 +76,7 @@ class ReviewSentimentFlow(FlowSpec):
 
                     chart.update(sentiment_chart.spec(**counts))
                     progress.update(i)
-                    current.card.refresh()
+                    #current.card.refresh()
         self.next(self.join)
 
     @step
